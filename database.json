@@ -1,0 +1,85 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "username": "student1",
+      "password": "student123",
+      "role": "student",
+      "name": "Rahul Sharma"
+    },
+    {
+      "id": "2",
+      "username": "moderator1",
+      "password": "mod123",
+      "role": "moderator",
+      "name": "Dr. Priya Reddy"
+    },
+    {
+      "id": "3",
+      "username": "gatekeeper1",
+      "password": "gate123",
+      "role": "gatekeeper",
+      "name": "Suresh Kumar"
+    }
+  ],
+  "passes": [
+    {
+      "id": "1761373890832trm1lv25q",
+      "studentId": "1",
+      "studentName": "Rahul Sharma",
+      "reason": "project research ",
+      "destination": "Ghatkesar",
+      "expectedReturn": "2025-10-26T12:01",
+      "status": "approved",
+      "requestedAt": "2025-10-25T06:31:30.832Z",
+      "moderatorRemarks": "Approved - Valid reason",
+      "approvedBy": "Dr. Priya Reddy",
+      "exitTime": "2025-10-25T07:13:57.236Z",
+      "entryTime": "2025-10-25T07:14:32.457Z",
+      "approvedAt": "2025-10-25T07:04:50.024Z"
+    },
+    {
+      "id": "1761374157886fc4i02va5",
+      "studentId": "1",
+      "studentName": "Rahul Sharma",
+      "reason": "deco items",
+      "destination": "Begumpet",
+      "expectedReturn": "2025-11-14T12:05",
+      "status": "rejected",
+      "requestedAt": "2025-10-25T06:35:57.886Z",
+      "moderatorRemarks": "too far ",
+      "approvedBy": "Dr. Priya Reddy",
+      "exitTime": null,
+      "entryTime": null,
+      "approvedAt": "2025-10-25T06:36:25.733Z"
+    },
+    {
+      "id": "1761375583453p5k4398j2",
+      "studentId": "1",
+      "studentName": "Rahul Sharma",
+      "reason": "Doctor appointment",
+      "destination": "City Hospital",
+      "expectedReturn": "2025-10-26T18:00:00",
+      "status": "pending",
+      "requestedAt": "2025-10-25T06:59:43.453Z",
+      "moderatorRemarks": "",
+      "approvedBy": null,
+      "exitTime": null,
+      "entryTime": null
+    },
+    {
+      "id": "1761375780549wklgglgzk",
+      "studentId": "1",
+      "studentName": "Rahul Sharma",
+      "reason": "Doctor appointment",
+      "destination": "City Hospital",
+      "expectedReturn": "2025-10-26T18:00:00",
+      "status": "pending",
+      "requestedAt": "2025-10-25T07:03:00.549Z",
+      "moderatorRemarks": "",
+      "approvedBy": null,
+      "exitTime": null,
+      "entryTime": null
+    }
+  ]
+}

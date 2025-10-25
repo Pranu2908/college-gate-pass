@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moderator Dashboard</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <h1>Moderator Dashboard</h1>
+      <div class="user-info">
+        <span id="userName"></span>
+        <button class="btn btn-outline" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="dashboard-grid">
+      <div class="stat-card">
+        <h3 id="pendingCount">0</h3>
+        <p>Pending Requests</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="approvedCount">0</h3>
+        <p>Approved</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="rejectedCount">0</h3>
+        <p>Rejected</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="totalCount">0</h3>
+        <p>Total Requests</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="color: #8f191d; margin-bottom: 20px;">Pending Requests</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Request Date</th>
+              <th>Reason</th>
+              <th>Destination</th>
+              <th>Expected Return</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pendingTableBody">
+            <tr>
+              <td colspan="6" class="empty-state">
+                <h3>No pending requests</h3>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="color: #03505d; margin-bottom: 20px;">All Requests</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Request Date</th>
+              <th>Reason</th>
+              <th>Destination</th>
+              <th>Status</th>
+              <th>Remarks</th>
+              <th>Approved By</th>
+            </tr>
+          </thead>
+          <tbody id="allPassesTableBody">
+            <tr>
+              <td colspan="7" class="empty-state">
+                <h3>No requests found</h3>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="actionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Review Gate Pass Request</h2>
+        <button class="close-modal" onclick="closeActionModal()">&times;</button>
+      </div>
+      
+      <div class="pass-details">
+        <div class="pass-detail-item">
+          <span class="pass-detail-label">Student Name:</span>
+          <span class="pass-detail-value" id="modalStudentName"></span>
+        </div>
+        <div class="pass-detail-item">
+          <span class="pass-detail-label">Reason:</span>
+          <span class="pass-detail-value" id="modalReason"></span>
+        </div>
+        <div class="pass-detail-item">
+          <span class="pass-detail-label">Destination:</span>
+          <span class="pass-detail-value" id="modalDestination"></span>
+        </div>
+        <div class="pass-detail-item">
+          <span class="pass-detail-label">Expected Return:</span>
+          <span class="pass-detail-value" id="modalReturn"></span>
+        </div>
+      </div>
+
+      <form id="actionForm">
+        <input type="hidden" id="selectedPassId">
+        
+        <div class="form-group">
+          <label for="remarks">Remarks (Optional)</label>
+          <textarea 
+            id="remarks" 
+            name="remarks" 
+            placeholder="Add any remarks or comments"
+          ></textarea>
+        </div>
+
+        <div class="action-buttons">
+          <button type="button" class="btn btn-success" onclick="approvePass()">
+            Approve
+          </button>
+          <button type="button" class="btn btn-danger" onclick="rejectPass()">
+            Reject
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    let currentUser = null;
+
+    function checkAuth() {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        window.location.href = '../index.html';
+        return;
+      }
+      currentUser = JSON.parse(userStr);
+      if (currentUser.role !== 'moderator') {
+        window.location.href = '../index.html';
+        return;
+      }
+      document.getElementById('userName').textContent = currentUser.name;
+    }
+
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = '../index.html';
+    }
+
+    async function loadStats() {
+      try {
+        const response = await fetch(`${API_BASE}/passes/all`);
+        const data = await response.json();
+
+        const pending = data.passes.filter(p => p.status === 'pending').length;
+        const approved = data.passes.filter(p => p.status === 'approved').length;
+        const rejected = data.passes.filter(p => p.status === 'rejected').length;
+
+        document.getElementById('pendingCount').textContent = pending;
+        document.getElementById('approvedCount').textContent = approved;
+        document.getElementById('rejectedCount').textContent = rejected;
+        document.getElementById('totalCount').textContent = data.passes.length;
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    }
+
+    async function loadPendingRequests() {
+      try {
+        const response = await fetch(`${API_BASE}/passes/pending`);
+        const data = await response.json();
+
+        const tbody = document.getElementById('pendingTableBody');
+        
+        if (data.passes.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" class="empty-state">
+                <h3>No pending requests</h3>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = data.passes.map(pass => `
+          <tr>
+            <td>${pass.studentName}</td>
+            <td>${new Date(pass.requestedAt).toLocaleString()}</td>
+            <td>${pass.reason}</td>
+            <td>${pass.destination}</td>
+            <td>${new Date(pass.expectedReturn).toLocaleString()}</td>
+            <td>
+              <button class="btn btn-small btn-primary" onclick='openActionModal(${JSON.stringify(pass)})'>
+                Review
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading pending requests:', error);
+      }
+    }
+
+    async function loadAllPasses() {
+      try {
+        const response = await fetch(`${API_BASE}/passes/all`);
+        const data = await response.json();
+
+        const tbody = document.getElementById('allPassesTableBody');
+        
+        if (data.passes.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" class="empty-state">
+                <h3>No requests found</h3>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = data.passes.map(pass => `
+          <tr>
+            <td>${pass.studentName}</td>
+            <td>${new Date(pass.requestedAt).toLocaleString()}</td>
+            <td>${pass.reason}</td>
+            <td>${pass.destination}</td>
+            <td>
+              <span class="status-badge status-${pass.status}">${pass.status}</span>
+            </td>
+            <td>${pass.moderatorRemarks || '-'}</td>
+            <td>${pass.approvedBy || '-'}</td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading all passes:', error);
+      }
+    }
+
+    function openActionModal(pass) {
+      document.getElementById('selectedPassId').value = pass.id;
+      document.getElementById('modalStudentName').textContent = pass.studentName;
+      document.getElementById('modalReason').textContent = pass.reason;
+      document.getElementById('modalDestination').textContent = pass.destination;
+      document.getElementById('modalReturn').textContent = new Date(pass.expectedReturn).toLocaleString();
+      document.getElementById('remarks').value = '';
+      
+      document.getElementById('actionModal').classList.add('active');
+    }
+
+    function closeActionModal() {
+      document.getElementById('actionModal').classList.remove('active');
+    }
+
+    async function approvePass() {
+      const passId = document.getElementById('selectedPassId').value;
+      const remarks = document.getElementById('remarks').value;
+
+      try {
+        const response = await fetch(`${API_BASE}/passes/${passId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            status: 'approved',
+            remarks: remarks,
+            moderatorName: currentUser.name
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeActionModal();
+          loadStats();
+          loadPendingRequests();
+          loadAllPasses();
+          alert('Gate pass approved successfully!');
+        }
+      } catch (error) {
+        alert('Error approving pass. Please try again.');
+      }
+    }
+
+    async function rejectPass() {
+      const passId = document.getElementById('selectedPassId').value;
+      const remarks = document.getElementById('remarks').value;
+
+      if (!remarks.trim()) {
+        alert('Please provide a reason for rejection');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/passes/${passId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            status: 'rejected',
+            remarks: remarks,
+            moderatorName: currentUser.name
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeActionModal();
+          loadStats();
+          loadPendingRequests();
+          loadAllPasses();
+          alert('Gate pass rejected.');
+        }
+      } catch (error) {
+        alert('Error rejecting pass. Please try again.');
+      }
+    }
+
+    checkAuth();
+    loadStats();
+    loadPendingRequests();
+    loadAllPasses();
+    
+    setInterval(() => {
+      loadStats();
+      loadPendingRequests();
+      loadAllPasses();
+    }, 10000);
+  </script>
+</body>
+</html>

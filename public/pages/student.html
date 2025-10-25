@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <h1>Student Dashboard</h1>
+      <div class="user-info">
+        <span id="userName"></span>
+        <button class="btn btn-outline" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2 style="color: #8f191d; margin-bottom: 20px;">Request Gate Pass</h2>
+      <div id="successMessage" class="alert alert-success" style="display: none;"></div>
+      
+      <form id="passRequestForm">
+        <div class="form-group">
+          <label for="reason">Reason for Exit</label>
+          <textarea 
+            id="reason" 
+            name="reason" 
+            placeholder="Enter reason for leaving campus"
+            required
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="destination">Destination</label>
+          <input 
+            type="text" 
+            id="destination" 
+            name="destination" 
+            placeholder="Enter destination"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="expectedReturn">Expected Return Date & Time</label>
+          <input 
+            type="datetime-local" 
+            id="expectedReturn" 
+            name="expectedReturn" 
+            required
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit Request</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="color: #03505d; margin-bottom: 20px;">My Gate Passes</h2>
+      <div class="table-container">
+        <table id="passesTable">
+          <thead>
+            <tr>
+              <th>Request Date</th>
+              <th>Reason</th>
+              <th>Destination</th>
+              <th>Expected Return</th>
+              <th>Status</th>
+              <th>Remarks</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="passesTableBody">
+            <tr>
+              <td colspan="7" class="empty-state">
+                <h3>No gate passes found</h3>
+                <p>Submit a request to get started</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="qrModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Your Gate Pass QR Code</h2>
+        <button class="close-modal" onclick="closeQRModal()">&times;</button>
+      </div>
+      <div class="qr-container">
+        <p style="margin-bottom: 20px; color: #03505d;">Show this QR code at the gate</p>
+        <div id="qrcode"></div>
+        <p style="margin-top: 20px; font-size: 14px; color: #666;">Pass ID: <span id="passIdDisplay"></span></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    let currentUser = null;
+
+    function checkAuth() {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        window.location.href = '../index.html';
+        return;
+      }
+      currentUser = JSON.parse(userStr);
+      if (currentUser.role !== 'student') {
+        window.location.href = '../index.html';
+        return;
+      }
+      document.getElementById('userName').textContent = currentUser.name;
+    }
+
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = '../index.html';
+    }
+
+    async function loadPasses() {
+      try {
+        const response = await fetch(`${API_BASE}/passes/student/${currentUser.id}`);
+        const data = await response.json();
+
+        const tbody = document.getElementById('passesTableBody');
+        
+        if (data.passes.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" class="empty-state">
+                <h3>No gate passes found</h3>
+                <p>Submit a request to get started</p>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = data.passes.map(pass => `
+          <tr>
+            <td>${new Date(pass.requestedAt).toLocaleString()}</td>
+            <td>${pass.reason}</td>
+            <td>${pass.destination}</td>
+            <td>${new Date(pass.expectedReturn).toLocaleString()}</td>
+            <td>
+              <span class="status-badge status-${pass.status}">${pass.status}</span>
+            </td>
+            <td>${pass.moderatorRemarks || '-'}</td>
+            <td>
+              ${pass.status === 'approved' && !pass.entryTime ? 
+                `<button class="btn btn-small btn-secondary" onclick="showQRCode('${pass.id}')">View QR</button>` : 
+                '-'
+              }
+            </td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading passes:', error);
+      }
+    }
+
+    document.getElementById('passRequestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const reason = document.getElementById('reason').value;
+      const destination = document.getElementById('destination').value;
+      const expectedReturn = document.getElementById('expectedReturn').value;
+      const successDiv = document.getElementById('successMessage');
+
+      try {
+        const response = await fetch(`${API_BASE}/passes`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            studentId: currentUser.id,
+            studentName: currentUser.name,
+            reason,
+            destination,
+            expectedReturn
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          successDiv.textContent = 'Gate pass request submitted successfully!';
+          successDiv.style.display = 'block';
+          
+          document.getElementById('passRequestForm').reset();
+          loadPasses();
+          
+          setTimeout(() => {
+            successDiv.style.display = 'none';
+          }, 3000);
+        }
+      } catch (error) {
+        alert('Error submitting request. Please try again.');
+      }
+    });
+
+    function showQRCode(passId) {
+      const modal = document.getElementById('qrModal');
+      const qrContainer = document.getElementById('qrcode');
+      
+      qrContainer.innerHTML = '';
+      
+      new QRCode(qrContainer, {
+        text: passId,
+        width: 256,
+        height: 256,
+        colorDark: "#03505d",
+        colorLight: "#ffffff",
+      });
+      
+      document.getElementById('passIdDisplay').textContent = passId;
+      modal.classList.add('active');
+    }
+
+    function closeQRModal() {
+      document.getElementById('qrModal').classList.remove('active');
+    }
+
+    checkAuth();
+    loadPasses();
+    setInterval(loadPasses, 10000);
+  </script>
+</body>
+</html>

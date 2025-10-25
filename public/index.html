@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>College Gate Pass - Login</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <h1>Gate Pass System</h1>
+        <p>College Management Portal</p>
+      </div>
+
+      <div id="errorMessage" class="alert alert-error" style="display: none;"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            placeholder="Enter your username"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            placeholder="Enter your password"
+            required
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+          Login
+        </button>
+      </form>
+
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+        <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 15px;">Demo Credentials:</p>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-size: 13px;">
+          <p style="margin-bottom: 8px;"><strong>Student:</strong> student1 / student123</p>
+          <p style="margin-bottom: 8px;"><strong>Moderator:</strong> moderator1 / mod123</p>
+          <p><strong>Gatekeeper:</strong> gatekeeper1 / gate123</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const errorDiv = document.getElementById('errorMessage');
+
+      try {
+        const response = await fetch(`${API_BASE}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          
+          switch (data.user.role) {
+            case 'student':
+              window.location.href = 'pages/student.html';
+              break;
+            case 'moderator':
+              window.location.href = 'pages/moderator.html';
+              break;
+            case 'gatekeeper':
+              window.location.href = 'pages/gatekeeper.html';
+              break;
+          }
+        } else {
+          errorDiv.textContent = data.message;
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        errorDiv.textContent = 'Connection error. Please make sure the server is running.';
+        errorDiv.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

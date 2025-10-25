@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gatekeeper Dashboard</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <h1>Gatekeeper Dashboard</h1>
+      <div class="user-info">
+        <span id="userName"></span>
+        <button class="btn btn-outline" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2 style="color: #8f191d; margin-bottom: 20px;">Scan Gate Pass</h2>
+      
+      <div class="scan-input-container">
+        <div class="form-group">
+          <label for="passId">Enter Pass ID or Scan QR Code</label>
+          <input 
+            type="text" 
+            id="passId" 
+            placeholder="Enter or scan pass ID"
+            autofocus
+          >
+        </div>
+        <button class="btn btn-primary" onclick="scanPass()">Check Pass</button>
+      </div>
+
+      <div id="passInfo" style="display: none;">
+        <div class="pass-details">
+          <h3 style="color: #03505d; margin-bottom: 15px;">Pass Details</h3>
+          
+          <div class="pass-detail-item">
+            <span class="pass-detail-label">Student Name:</span>
+            <span class="pass-detail-value" id="infoStudentName"></span>
+          </div>
+          <div class="pass-detail-item">
+            <span class="pass-detail-label">Reason:</span>
+            <span class="pass-detail-value" id="infoReason"></span>
+          </div>
+          <div class="pass-detail-item">
+            <span class="pass-detail-label">Destination:</span>
+            <span class="pass-detail-value" id="infoDestination"></span>
+          </div>
+          <div class="pass-detail-item">
+            <span class="pass-detail-label">Expected Return:</span>
+            <span class="pass-detail-value" id="infoReturn"></span>
+          </div>
+          <div class="pass-detail-item">
+            <span class="pass-detail-label">Status:</span>
+            <span class="pass-detail-value" id="infoStatus"></span>
+          </div>
+          <div class="pass-detail-item" id="exitTimeRow" style="display: none;">
+            <span class="pass-detail-label">Exit Time:</span>
+            <span class="pass-detail-value" id="infoExitTime"></span>
+          </div>
+          <div class="pass-detail-item" id="entryTimeRow" style="display: none;">
+            <span class="pass-detail-label">Entry Time:</span>
+            <span class="pass-detail-value" id="infoEntryTime"></span>
+          </div>
+        </div>
+
+        <div class="action-buttons" style="margin-top: 20px;">
+          <button id="exitBtn" class="btn btn-success" onclick="markExit()" style="display: none;">
+            Mark Exit
+          </button>
+          <button id="entryBtn" class="btn btn-secondary" onclick="markEntry()" style="display: none;">
+            Mark Entry
+          </button>
+        </div>
+      </div>
+
+      <div id="errorMessage" class="alert alert-error" style="display: none; margin-top: 20px;"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="color: #03505d; margin-bottom: 20px;">Active Passes (Out of Campus)</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Destination</th>
+              <th>Exit Time</th>
+              <th>Expected Return</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="activePassesBody">
+            <tr>
+              <td colspan="5" class="empty-state">
+                <h3>No active passes</h3>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    let currentUser = null;
+    let currentPass = null;
+
+    // Check authentication
+    function checkAuth() {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        window.location.href = '../index.html';
+        return;
+      }
+      currentUser = JSON.parse(userStr);
+      if (currentUser.role !== 'gatekeeper') {
+        window.location.href = '../index.html';
+        return;
+      }
+      document.getElementById('userName').textContent = currentUser.name;
+    }
+
+    // Logout
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = '../index.html';
+    }
+
+    // Scan pass
+    async function scanPass() {
+      const passId = document.getElementById('passId').value.trim();
+      const passInfo = document.getElementById('passInfo');
+      const errorDiv = document.getElementById('errorMessage');
+
+      if (!passId) {
+        errorDiv.textContent = 'Please enter a pass ID';
+        errorDiv.style.display = 'block';
+        passInfo.style.display = 'none';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/passes/${passId}`);
+        
+        if (!response.ok) {
+          errorDiv.textContent = 'Pass not found. Please check the ID.';
+          errorDiv.style.display = 'block';
+          passInfo.style.display = 'none';
+          return;
+        }
+
+        const data = await response.json();
+        currentPass = data.pass;
+
+        // Hide error and show pass info
+        errorDiv.style.display = 'none';
+        passInfo.style.display = 'block';
+
+        // Fill in details
+        document.getElementById('infoStudentName').textContent = currentPass.studentName;
+        document.getElementById('infoReason').textContent = currentPass.reason;
+        document.getElementById('infoDestination').textContent = currentPass.destination;
+        document.getElementById('infoReturn').textContent = new Date(currentPass.expectedReturn).toLocaleString();
+        
+        // Status badge
+        const statusSpan = document.getElementById('infoStatus');
+        statusSpan.innerHTML = `<span class="status-badge status-${currentPass.status}">${currentPass.status}</span>`;
+
+        // Show/hide exit and entry times
+        const exitTimeRow = document.getElementById('exitTimeRow');
+        const entryTimeRow = document.getElementById('entryTimeRow');
+        const exitBtn = document.getElementById('exitBtn');
+        const entryBtn = document.getElementById('entryBtn');
+
+        if (currentPass.exitTime) {
+          exitTimeRow.style.display = 'flex';
+          document.getElementById('infoExitTime').textContent = new Date(currentPass.exitTime).toLocaleString();
+        } else {
+          exitTimeRow.style.display = 'none';
+        }
+
+        if (currentPass.entryTime) {
+          entryTimeRow.style.display = 'flex';
+          document.getElementById('infoEntryTime').textContent = new Date(currentPass.entryTime).toLocaleString();
+        } else {
+          entryTimeRow.style.display = 'none';
+        }
+
+        // Show appropriate buttons
+        exitBtn.style.display = 'none';
+        entryBtn.style.display = 'none';
+
+        if (currentPass.status === 'approved') {
+          if (!currentPass.exitTime) {
+            exitBtn.style.display = 'inline-block';
+          } else if (!currentPass.entryTime) {
+            entryBtn.style.display = 'inline-block';
+          }
+        }
+
+      } catch (error) {
+        errorDiv.textContent = 'Error fetching pass details. Please try again.';
+        errorDiv.style.display = 'block';
+        passInfo.style.display = 'none';
+      }
+    }
+
+    // Mark exit
+    async function markExit() {
+      if (!currentPass) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/passes/${currentPass.id}/exit`, {
+          method: 'PUT'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Exit marked successfully!');
+          document.getElementById('passId').value = '';
+          document.getElementById('passInfo').style.display = 'none';
+          loadActivePasses();
+        } else {
+          alert(data.message);
+        }
+      } catch (error) {
+        alert('Error marking exit. Please try again.');
+      }
+    }
+
+    // Mark entry
+    async function markEntry() {
+      if (!currentPass) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/passes/${currentPass.id}/entry`, {
+          method: 'PUT'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Entry marked successfully!');
+          document.getElementById('passId').value = '';
+          document.getElementById('passInfo').style.display = 'none';
+          loadActivePasses();
+        } else {
+          alert(data.message);
+        }
+      } catch (error) {
+        alert('Error marking entry. Please try again.');
+      }
+    }
+
+    // Load active passes
+    async function loadActivePasses() {
+      try {
+        const response = await fetch(`${API_BASE}/passes/active`);
+        const data = await response.json();
+
+        const tbody = document.getElementById('activePassesBody');
+        
+        if (data.passes.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" class="empty-state">
+                <h3>No active passes</h3>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = data.passes.map(pass => {
+          const statusText = pass.exitTime ? 'Outside Campus' : 'Approved - Not Exited';
+          return `
+            <tr>
+              <td>${pass.studentName}</td>
+              <td>${pass.destination}</td>
+              <td>${pass.exitTime ? new Date(pass.exitTime).toLocaleString() : '-'}</td>
+              <td>${new Date(pass.expectedReturn).toLocaleString()}</td>
+              <td><span class="status-badge status-approved">${statusText}</span></td>
+            </tr>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading active passes:', error);
+      }
+    }
+
+    // Enable Enter key for scanning
+    document.getElementById('passId').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        scanPass();
+      }
+    });
+
+    // Initialize
+    checkAuth();
+    loadActivePasses();
+    
+    // Refresh active passes every 10 seconds
+    setInterval(loadActivePasses, 10000);
+    // Example pass data (you can keep this at the top of main.js)
+const passes = [
+  {
+    id: 1001,
+    studentName: "Aarav Sharma",
+    reason: "Library research",
+    destination: "Central Library",
+    expectedReturn: "2025-10-25T18:30:00",
+    status: "approved",
+    remarks: "Return by 6:30 PM",
+    exitTime: null,
+    entryTime: null
+  },
+  {
+    id: 1002,
+    studentName: "Neha Patel",
+    reason: "Personal visit",
+    destination: "Home",
+    expectedReturn: "2025-10-25T19:00:00",
+    status: "rejected",
+    remarks: "Reason not sufficient",
+    exitTime: null,
+    entryTime: null
+  },
+  {
+    id: 1003,
+    studentName: "Rohan Verma",
+    reason: "Sports event",
+    destination: "Playground",
+    expectedReturn: "2025-10-25T20:00:00",
+    status: "approved",
+    remarks: "Approved by moderator",
+    exitTime: null,
+    entryTime: null
+  }
+];
+
+// Get pass by ID
+app.get('/api/passes/:id', (req, res) => {
+  const pass = passes.find(p => p.id == req.params.id);
+  if (!pass) {
+    return res.status(404).json({ message: 'Pass not found' });
+  }
+  res.json({ pass });
+});
+
+// Get all active passes (for the table)
+app.get('/api/passes/active', (req, res) => {
+  const active = passes.filter(p => p.status === 'approved' && !p.entryTime);
+  res.json({ passes: active });
+});
+
+  </script>
+</body>
+</html>
