@@ -250,7 +250,72 @@ app.get('/api/passes/active', (req, res) => {
     passes: activePasses
   });
 });
+// ===== LOCATION TRACKING APIS =====
 
+// Update student location (only if late)
+app.post('/api/passes/:passId/location', (req, res) => {
+  const { passId } = req.params;
+  const { latitude, longitude, timestamp } = req.body;
+  const db = readDatabase();
+  
+  const passIndex = db.passes.findIndex(p => p.id === passId);
+  
+  if (passIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      message: 'Pass not found'
+    });
+  }
+  
+  const pass = db.passes[passIndex];
+  
+  // Only track if student is late
+  const expectedReturn = new Date(pass.expectedReturn);
+  const now = new Date();
+  
+  if (now > expectedReturn && pass.exitTime && !pass.entryTime) {
+    db.passes[passIndex].location = {
+      latitude,
+      longitude,
+      timestamp,
+      isLate: true
+    };
+    
+    writeDatabase(db);
+    
+    return res.json({
+      success: true,
+      message: 'Location tracked',
+      pass: db.passes[passIndex]
+    });
+  } else {
+    return res.json({
+      success: false,
+      message: 'Not late, location not tracked'
+    });
+  }
+});
+
+// Get late students
+app.get('/api/passes/late', (req, res) => {
+  const db = readDatabase();
+  const now = new Date();
+  
+  const latePasses = db.passes.filter(p => {
+    const expectedReturn = new Date(p.expectedReturn);
+    return (
+      p.status === 'approved' &&
+      p.exitTime &&
+      !p.entryTime &&
+      now > expectedReturn
+    );
+  });
+  
+  res.json({
+    success: true,
+    passes: latePasses
+  });
+});
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
