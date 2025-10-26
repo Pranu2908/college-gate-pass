@@ -359,16 +359,118 @@ const API_BASE = 'https://college-gate-pass.onrender.com/api';
       }
     }
 
+   // Load late students with location
+    async function loadLateStudents() {
+      try {
+        const response = await fetch(`${API_BASE}/passes/late`);
+        const data = await response.json();
+
+        const tbody = document.getElementById('latePassesTableBody');
+        
+        if (data.passes.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" class="empty-state">
+                <h3>No late returns</h3>
+                <p>All students returned on time! 🎉</p>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = data.passes.map(pass => {
+          const expectedReturn = new Date(pass.expectedReturn);
+          const now = new Date();
+          const minutesLate = Math.floor((now - expectedReturn) / (1000 * 60));
+          
+          let locationInfo = 'Waiting for location...';
+          let mapLink = '';
+          
+          if (pass.location) {
+            locationInfo = `📍 ${pass.location.latitude.toFixed(4)}, ${pass.location.longitude.toFixed(4)}`;
+            mapLink = `<a href="https://www.google.com/maps?q=${pass.location.latitude},${pass.location.longitude}" target="_blank" class="btn btn-small btn-secondary">View Map</a>`;
+          }
+          
+          return `
+            <tr style="background-color: #fff3cd;">
+              <td>${pass.studentName}</td>
+              <td>${pass.destination}</td>
+              <td>${expectedReturn.toLocaleString()}</td>
+              <td style="color: #8f191d; font-weight: bold;">${minutesLate} min</td>
+              <td>${locationInfo}</td>
+              <td>${mapLink || '-'}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading late students:', error);
+      }
+    }
+
+   // Load late students with location
+    async function loadLateStudents() {
+      try {
+        const response = await fetch(`${API_BASE}/passes/late`);
+        const data = await response.json();
+
+        const tbody = document.getElementById('latePassesTableBody');
+        
+        if (data.passes.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" class="empty-state">
+                <h3>No late returns</h3>
+                <p>All students returned on time! 🎉</p>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = data.passes.map(pass => {
+          const expectedReturn = new Date(pass.expectedReturn);
+          const now = new Date();
+          const minutesLate = Math.floor((now - expectedReturn) / (1000 * 60));
+          
+          let locationInfo = 'Waiting for location...';
+          let mapLink = '';
+          
+          if (pass.location) {
+            locationInfo = `📍 ${pass.location.latitude.toFixed(4)}, ${pass.location.longitude.toFixed(4)}`;
+            mapLink = `<a href="https://www.google.com/maps?q=${pass.location.latitude},${pass.location.longitude}" target="_blank" class="btn btn-small btn-secondary">View Map</a>`;
+          }
+          
+          return `
+            <tr style="background-color: #fff3cd;">
+              <td>${pass.studentName}</td>
+              <td>${pass.destination}</td>
+              <td>${expectedReturn.toLocaleString()}</td>
+              <td style="color: #8f191d; font-weight: bold;">${minutesLate} min</td>
+              <td>${locationInfo}</td>
+              <td>${mapLink || '-'}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading late students:', error);
+      }
+    }
+
     checkAuth();
     loadStats();
     loadPendingRequests();
     loadAllPasses();
+    loadLateStudents();
     
     setInterval(() => {
       loadStats();
       loadPendingRequests();
       loadAllPasses();
+      loadLateStudents();
     }, 10000);
+  </script>
+  </script>
   </script>
 </body>
 </html>
