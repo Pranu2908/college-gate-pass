@@ -8,7 +8,10 @@ const app = express();
 const PORT = 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['https://college-gate-pass.vercel.app', 'http://localhost:3000'],
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
