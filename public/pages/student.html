@@ -229,9 +229,70 @@
       document.getElementById('qrModal').classList.remove('active');
     }
 
+    // Auto-check if student is late and track location
+    async function checkIfLateAndTrack() {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_BASE}/passes/student/${currentUser.id}`);
+        const data = await response.json();
+        
+        if (data.passes) {
+          const now = new Date();
+          
+          data.passes.forEach(async pass => {
+            const expectedReturn = new Date(pass.expectedReturn);
+            
+            // Check if late and still outside
+            if (pass.status === 'approved' && 
+                pass.exitTime && 
+                !pass.entryTime && 
+                now > expectedReturn) {
+              
+              // Student is late! Request location
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  async (position) => {
+                    await fetch(`${API_BASE}/passes/${pass.id}/location`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        timestamp: new Date().toISOString()
+                      })
+                    });
+                  },
+                  (error) => {
+                    console.log('Location access denied');
+                  }
+                );
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error checking late status:', error);
+      }
+    }
+
+    // Initialize
     checkAuth();
     loadPasses();
+    
+    // Check for late status immediately
+    checkIfLateAndTrack();
+    
+    // Refresh passes every 10 seconds
     setInterval(loadPasses, 10000);
+    
+    // Check for late status every 5 minutes
+    setInterval(checkIfLateAndTrack, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
   </script>
 </body>
 </html>
